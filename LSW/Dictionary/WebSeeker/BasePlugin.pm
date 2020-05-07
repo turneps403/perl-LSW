@@ -2,6 +2,10 @@ package LSW::Dictionary::WebSeeker::BasePlugin;
 use strict;
 use warnings;
 
+sub weight {
+    die "Not implemented!";
+}
+
 sub create_urls {
     my $class = shift;
     my $words = ref $_[0] == "ARRAY" ? $_[0] : \@_;

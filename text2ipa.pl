@@ -7,7 +7,7 @@ use LSW::Dictionary;
 
     GetOptions(
         "file=s" => \my $file,
-        "db=s" => \my $db,
+        "db=s" => \my $db_path,
     );
 
     unless (-f $file) {
@@ -20,7 +20,7 @@ use LSW::Dictionary;
 
     my @words = $content =~ /(\w+)/g;
 
-    my $lsw = LSW::Dictionary->new(db_path => $db);
+    my $lsw = LSW::Dictionary->new(db_path => $db_path);
     my $ipa_dict = $lsw->words2ipa(@words);
 
     $content =~ s/(\w+)/$lsw->get($1) || "-$1-"/seg;
