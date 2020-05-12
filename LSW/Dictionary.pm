@@ -1,24 +1,25 @@
 package LSW::Dictionary;
 use Mouse;
 
+use List::MoreUtils qw(uniq);
 use LSW::Dictionary::DB qw();
-use LSW::Dictionary::WebSeeker qw();
+#use LSW::Dictionary::WebSeeker qw();
 
 
 sub BUILDARGS {
     my $class = shift;
     my $params = @_ == 1 ? $_[0] : {@_};
-    if ($params->{db_path}) {
-        $params->{db} = LSW::Dictionary::DB->new(db_path => $params->{db_path});
-    }
+    LSW::Dictionary::DB->words->init($params->{words_db_path});
+    LSW::Dictionary::DB->sounds->init($params->{sounds_db_path});
     return $params;
 }
 
 
 has 'db' => (
     is => 'ro',
-    isa => 'Maybe[LSW::Dictionary::DB]',
-    required => 1
+    isa => 'ClassName',
+    lazy => 1,
+    default => sub { "LSW::Dictionary::DB" }
 );
 
 has 'web_seeker' => (
@@ -28,7 +29,7 @@ has 'web_seeker' => (
     default => sub { "LSW::Dictionary::WebSeeker" }
 );
 
-sub words2ipa {
+sub lookup {
     my $self = shift;
     return unless @_;
     my $params = {};
@@ -38,16 +39,24 @@ sub words2ipa {
     return unless @_;
     my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
 
-    my $db_words = $self->db->get_words($words);
-    if (%$db_words) {
-        my $sounds = $self->db->get_sounds(keys %$db_words);
-        # TODO
+    my $db_words = $self->db->words->lookup($words);
+    my $db_sounds = $self->db->sounds->lookup($words);
+
+    my $ret = {};
+    for my $w (@$words) {
+        $ret->{$w} = $db_words->{$w};
+        if ($db_sounds->{$w}) {
+            $ret->{$w}->{sounds} = $db_sounds->{$w};
+        }
     }
 
-    my @not_db_words = grep { not exists $db_words->{$_} } @$words;
-    my $db_words = $self->web_seeker->get_words(@not_db_words);
+    #my @not_found = grep { not %{ $ret->{$_} } } keys %$db_words;
+    #my $db_trash = $self->db->trash->lookup(@not_found);
+    #my @new_words = grep { not $db_trash->{$_} } @not_found;
 
+    $self->db->queue->add_words(@new_words) if @new_words;
 
+    return $ret;
 }
 
 no Mouse;
