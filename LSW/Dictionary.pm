@@ -45,7 +45,7 @@ sub lookup {
     my $ret = {};
     for my $w (@$words) {
         $ret->{$w} = $db_words->{$w};
-        if ($db_sounds->{$w}) {
+        if (@{$db_sounds->{$w}}) {
             $ret->{$w}->{sounds} = $db_sounds->{$w};
         }
     }
@@ -54,7 +54,7 @@ sub lookup {
     #my $db_trash = $self->db->trash->lookup(@not_found);
     #my @new_words = grep { not $db_trash->{$_} } @not_found;
 
-    $self->db->queue->add_words(@new_words) if @new_words;
+    #$self->db->queue->add_words(@new_words) if @new_words;
 
     return $ret;
 }
