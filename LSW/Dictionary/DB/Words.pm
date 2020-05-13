@@ -9,24 +9,24 @@ sub check_or_create_tables {
     my $self = shift;
 
     my @q = (
-    "
-        -- just words with ipa, sometimes ipa doesn't exists
-        CREATE TABLE IF NOT EXISTS Words (
-            crc INTEGER NOT NULL PRIMARY KEY,
-        	word VARCHAR(255) NOT NULL,
-            ipa VARCHAR(255)
-        )
-    ",
-    "
-        -- to describe word lekation to others words
-        CREATE TABLE IF NOT EXISTS WordLinks (
-            crc INTEGER NOT NULL,
-            fk INTEGER NOT NULL
-        )
-    ",
-    "
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_sounds_crc ON WordLinks (crc, fk)
-    "
+        "
+            -- just words with ipa, sometimes ipa doesn't exists
+            CREATE TABLE IF NOT EXISTS Words (
+                crc INTEGER NOT NULL PRIMARY KEY,
+            	word VARCHAR(255) NOT NULL,
+                ipa VARCHAR(255)
+            )
+        ",
+        "
+            -- to describe word lekation to others words
+            CREATE TABLE IF NOT EXISTS WordLinks (
+                crc INTEGER NOT NULL,
+                fk INTEGER NOT NULL
+            )
+        ",
+        "
+             CREATE UNIQUE INDEX IF NOT EXISTS idx_sounds_crc ON WordLinks (crc, fk)
+        "
     );
 
     for (@q) {

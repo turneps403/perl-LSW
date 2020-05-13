@@ -71,6 +71,7 @@ sub add {
     for my $w (uniq map {lc} @$words) {
         $class->instance->dbh->do(
             "INSERT INTO TrashWords(crc, word) VALUES (?, ?)",
+            undef,
             String::CRC32::crc32($w), $w
         );
     }

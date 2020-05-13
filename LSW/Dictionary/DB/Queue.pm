@@ -38,7 +38,8 @@ sub add {
 
     for my $w (uniq map {lc} @$words) {
         $class->instance->dbh->do(
-            "INSERT INTO WordsQueue(word, atime) VALUES (?, ?)",
+            "INSERT OR IGNORE INTO WordsQueue(word, atime) VALUES (?, ?)",
+            undef,
             $w, time
         );
     }
@@ -63,9 +64,10 @@ sub get {
         # optimistic locking
         my $lock = $class->instance->dbh->do(
             "UPDATE WordsQueue SET atime = ? WHERE word = ? AND atime = ?",
+            undef,
             time + $LSW::Dictionary::DB::Queue::TTR, $row->{word}, $row->{atime}
         );
-        if ($lock) {
+        if (int $lock) {
             push @words, $row->{word};
         }
     }
@@ -81,6 +83,7 @@ sub delete {
     for my $w (uniq map {lc} @$words) {
         $class->instance->dbh->do(
             "DELETE FROM WordsQueue WHERE word = ?",
+            undef,
             $w
         );
     }

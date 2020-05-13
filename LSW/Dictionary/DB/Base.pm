@@ -64,6 +64,7 @@ sub _new {
             RaiseError => 1
         }
     ) or die $DBI::errstr;
+    # sqlite_allow_multiple_statements
     $dbh->{sqlite_see_if_its_a_number} = 1;
 
     my $self = bless { dbh => $dbh, db_path => $singletones->{$class}->{db_path}, last_ping => time }, $class;
