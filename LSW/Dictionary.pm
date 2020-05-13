@@ -11,6 +11,8 @@ sub BUILDARGS {
     my $params = @_ == 1 ? $_[0] : {@_};
     LSW::Dictionary::DB->words->init($params->{words_db_path});
     LSW::Dictionary::DB->sounds->init($params->{sounds_db_path});
+    LSW::Dictionary::DB->trash->init($params->{trash_db_path});
+    LSW::Dictionary::DB->queue->init($params->{queue_db_path});
     return $params;
 }
 
@@ -50,11 +52,14 @@ sub lookup {
         }
     }
 
-    #my @not_found = grep { not %{ $ret->{$_} } } keys %$db_words;
-    #my $db_trash = $self->db->trash->lookup(@not_found);
-    #my @new_words = grep { not $db_trash->{$_} } @not_found;
-
-    #$self->db->queue->add_words(@new_words) if @new_words;
+    my @not_found = grep { not %{ $ret->{$_} } } keys %$db_words;
+    if (@not_found) {
+        my $db_trash = $self->db->trash->lookup(@not_found);
+        my @new_words = grep { not $db_trash->{$_} } @not_found;
+        if (@new_words) {
+            $self->db->queue->add(@new_words);
+        }
+    }
 
     return $ret;
 }

@@ -18,7 +18,7 @@ use LSW::Dictionary;
         my $content = join('', <IN>);
     close(IN);
 
-    my @words = $content =~ /(\w+)/g;
+    my @words = $content =~ /(\w{1,240})/g;
 
     my $lsw = LSW::Dictionary->new(words_db_path => $words_db_path);
     my $ipa_dict = $lsw->words2ipa(@words);
