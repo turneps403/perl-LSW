@@ -3,6 +3,7 @@ use Mouse;
 
 use List::MoreUtils qw(uniq);
 use LSW::Dictionary::DB qw();
+use LSW::Dictionary::Web qw();
 #use LSW::Dictionary::WebSeeker qw();
 
 
@@ -31,6 +32,8 @@ has 'web_seeker' => (
     default => sub { "LSW::Dictionary::WebSeeker" }
 );
 
+sub web() { "LSW::Dictionary::Web" }
+
 sub lookup {
     my $self = shift;
     return unless @_;
@@ -57,12 +60,39 @@ sub lookup {
         my $db_trash = $self->db->trash->lookup(@not_found);
         my @new_words = grep { not $db_trash->{$_} } @not_found;
         if (@new_words) {
-            $self->db->queue->add(@new_words);
+            if ($params->{resolve_immediately}) {
+                my $resolved_words = $self->web->resolve(@new_words);
+                my @trash = grep {not $resolved_words->{$_}} @new_words;
+                if (@trash) {
+                    $self->db->trash->add(@trash);
+                }
+                if (%$resolved_words) {
+                    $self->db->words->add($resolved_words);
+                    $self->db->sounds->add($resolved_words);
+                }
+                $self->db->queue->delete(@new_words);
+                for my $new_w (keys %$resolved_words) {
+                    # TODO: remember to not translate sounds of new words
+                    $ret->{$new_w} = {
+                        sounds => [],
+                        map { +($_ => $resolved_words->{$_}) } qw(crc word ipa fk)
+                    };
+                }
+            } else {
+                $self->db->queue->add(@new_words);
+            }
         }
     }
 
     return $ret;
 }
+
+# sub auto_resolve {
+#     my ($class, $limit) = @_;
+#     $limit ||= 3;
+#     LSW::Dictionary::DB->queue->
+#
+# }
 
 no Mouse;
 __PACKAGE__->meta->make_immutable;

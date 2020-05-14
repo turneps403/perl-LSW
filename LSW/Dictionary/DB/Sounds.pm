@@ -2,8 +2,10 @@ package LSW::Dictionary::DB::Sounds;
 use strict;
 use warnings;
 
-use base qw(LSW::Dictionary::DB::Base);
 use String::CRC32 qw();
+use Digest::MD5 qw();
+
+use base qw(LSW::Dictionary::DB::Base);
 
 sub check_or_create_tables {
     my $self = shift;
@@ -59,7 +61,7 @@ sub lookup {
         ) or die $class->instance->dbh->errstr;
         for (@$tmp_res) {
             $res->{ $_->{crc} } ||= [];
-            push @{ $res->{ $_->{crc} } }, $_->{md5};
+            push @{ $res->{ $_->{crc} } }, $_;
         }
     }
 
@@ -76,6 +78,25 @@ sub lookup {
     }
 
     return $ret;
+}
+
+sub add {
+    my ($class, $resolved) = @_;
+    return unless $resolved and %$resolved;
+
+    for my $res (values %$resolved) {
+        if ($res->{sounds} and @{$res->{sounds}}) {
+            for my $sound_desc (@{$res->{sounds}}) {
+                $class->instance->dbh->do(
+                    "INSERT OR IGNORE INTO Sounds(md5, crc, sound_url, status) VALUES (?, ?, ?, 0)",
+                    undef,
+                    Digest::MD5::md5_hex($res->{crc} . $sound_desc->{sound_url}), $res->{crc}, $sound_desc->{sound_url}
+                );
+            }
+        }
+    }
+
+    return;
 }
 
 1;

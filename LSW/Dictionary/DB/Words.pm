@@ -90,5 +90,29 @@ sub lookup {
     return $ret;
 }
 
+sub add {
+    my ($class, $resolved) = @_;
+    return unless $resolved and %$resolved;
+
+    for my $res (values %$resolved) {
+        $class->instance->dbh->do(
+            "INSERT OR IGNORE INTO Words(crc, word, ipa) VALUES (?, ?, ?)",
+            undef,
+            $res->{crc}, $res->{word}, $res->{ipa}
+        );
+        if ($res->{fk} and @{$res->{fk}}) {
+            for my $fk (@{$res->{fk}}) {
+                $class->instance->dbh->do(
+                    "INSERT OR IGNORE INTO WordLinks(crc, fk) VALUES (?, ?)",
+                    undef,
+                    $res->{crc}, $fk
+                );
+            }
+        }
+    }
+
+    return;
+}
+
 1;
 __END__
