@@ -44,12 +44,29 @@ sub resolve {
         my $req = [];
         for my $pl (@$LSW::Dictionary::WebSeeker::plugins) {
             for my $w (@chunk) {
-                push @$req, { url => $pl->create_url($w), word => $w, pl => $pl, body => '', res => undef };
+                push @$req, {
+                    url => $pl->create_url($w),
+                    word => $w,
+                    pl => $pl,
+                    status => 0,
+                    body => '',
+                    res => undef
+                };
             }
         }
 
         $class->fetch_urls($req);
-        $class->parse_urls($req);
+        my $retry = abs int ($params->{retry} || 3);
+        while (
+            scalar(grep { $_->{status} == 0 } @$req)
+            or $retry--
+        ) {
+            $class->parse_urls($req);
+            unless (grep { $_->{status} == 500 } @$req) {
+                last;
+            }
+            sleep(1);
+        }
         1;
         # for my $r (@$req) {
         #     next unless $r->{body};
@@ -103,6 +120,7 @@ sub fetch_urls {
     my $cv = AnyEvent->condvar;
     $cv->begin;
     for my $r (@$req) {
+        next if $r->{body};
         my $ua = LSW::Dictionary::Web::UserAgent->get_ua();
         $cv->begin;
         http_get $r->{url},
@@ -111,7 +129,9 @@ sub fetch_urls {
             my ($body, $hdr) = @_;
             if (int $hdr->{Status} == 200) {
                 $r->{body} = $body;
+                $r->{status} = 200;
             } else {
+                $r->{status} = int $hdr->{Status};
                 warn("knock to ".$r->{url}." (real: ".$hdr->{URL}.") fail: status ".$hdr->{Status}." UA: $ua");
             }
             $cv->end;

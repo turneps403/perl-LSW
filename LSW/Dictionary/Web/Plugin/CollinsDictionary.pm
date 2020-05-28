@@ -42,6 +42,11 @@ my $parser = {
             $div =~ s/\s*\)\s*$//;
             return $div;
         }
+    ],
+    "/fk" => [
+        sub {
+
+        }
     ]
 };
 
