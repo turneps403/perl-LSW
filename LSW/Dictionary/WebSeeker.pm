@@ -25,15 +25,27 @@ for ( Module::Util::find_in_namespace(__PACKAGE__) ) {
 
 sub get_words {
     my $self = shift;
-    my $words = ref $_[0] == "ARRAY" ? $_[0] : \@_;
+    my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
     return {} unless @$words;
 
     my @words = grep {
-        /[0..9]/
-        || /^[bcdfghjklmnpqrstvxzwy]+$/i # consonants only
-        || (/^[aeiou]+$/i && $_!~/^(a|ie)$/i) # wouvels only
+        length($_) > 1
+        and $_ !~ /[0..9\.\s]/ # no any numbers or dots or spaces
+        and $_ !~ /^[bcdfghjklmnpqrstvxzwy]+$/i # consonants only
+        and ($_ !~ /^[aeiou]+$/i and $_ !~ /^(a|ie)$/i) # wouvels only
     } @$words;
-    return {} unless @$words;
+    return {} unless @words;
+
+    # words can be not uniq
+    my $crc_map = {};
+    for (@words) {
+        my $crc = String::CRC32::crc32(lc $_);
+        if (exists $crc_map->{ $crc }) {
+            push @{ $crc_map->{ $crc } }, $_;
+        } else {
+            $crc_map->{ $crc } = [$_];
+        }
+    }
 
     my $ret = {};
     for my $plugin (sort {
@@ -41,20 +53,9 @@ sub get_words {
         <=>
         $LSW::Dictionary::WebSeeker::plugins_weight->{$a}
     } keys %$LSW::Dictionary::WebSeeker::plugins_weight) {
-        # TODO: now we count word as completed even if it doesnt have sound
-        my @words = grep { not exists $ret->{$_} } @$words;
-        last unless @words;
-
-        # words can be not uniq
-        my $crc_map = {};
-        for (@words) {
-            my $crc = String::CRC32::crc32(lc $_);
-            if (exists $crc_map->{ $crc }) {
-                push @{ $crc_map->{ $crc } }, $_;
-            } else {
-                $crc_map->{ $crc } = [$_];
-            }
-        }
+        ## TODO: now we count word as completed even if it doesnt have sound
+        #my @words = grep { not exists $ret->{$_} } @$words;
+        #last unless @words;
 
         my $urls_map = {};
         @$urls_map{ $plugin->create_urls( map { $_->[0] } values %$crc_map ) } = map {+{crc => $_}} keys %$crc_map;
@@ -68,7 +69,7 @@ sub get_words {
             for my $u (@url_chunk) {
                 $cv->begin;
                 http_get $u,
-                timeout => 5, headers => {"User-Agent": LSW::Dictionary::UserAgent->get_ua()},
+                timeout => 5, headers => {"User-Agent" => LSW::Dictionary::UserAgent->get_ua()},
                 sub {
                     my ($body, $hdr) = @_;
                     if (int $hdr->{Status} == 200) {
@@ -85,19 +86,23 @@ sub get_words {
 
 
             for my $u (keys %$urls_body) {
+                my $parse_res = $plugin->parse($urls_body->{$u});
+                next unless keys %$parse_res;
+                $DB::signal = 1;
+                1;
                 #parse_html_string
                 #my $dom = XML::LibXML->load_html(
-                my $dom = XML::LibXML->parse_html_string(
-                    string => $urls_body->{$u},
-                    {
-                        recover => 1,
-                        expand_entities => 0,
-                        load_ext_dtd => 0,
-                        validation => 0,
-                        no_network => 1,
-                        # suppress_errors => 1,
-                    }
-                );
+                # my $dom = XML::LibXML->parse_html_string(
+                #     string => $urls_body->{$u},
+                #     {
+                #         recover => 1,
+                #         expand_entities => 0,
+                #         load_ext_dtd => 0,
+                #         validation => 0,
+                #         no_network => 1,
+                #         # suppress_errors => 1,
+                #     }
+                # );
 
             }
 

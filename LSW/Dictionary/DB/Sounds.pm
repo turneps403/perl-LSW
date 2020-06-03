@@ -7,6 +7,10 @@ use Digest::MD5 qw();
 
 use base qw(LSW::Dictionary::DB::Base);
 
+my $STATUS_UNCHECKED = 0;
+my $STATUS_GOOD = 1;
+my $STATUS_BAD = 2;
+
 sub check_or_create_tables {
     my $self = shift;
 
@@ -22,10 +26,7 @@ sub check_or_create_tables {
             )
         ",
         "
-            CREATE INDEX IF NOT EXISTS idx_sounds_crc ON Sounds (crc, status);
-        ",
-        "
-            CREATE INDEX IF NOT EXISTS idx_sounds_status ON Sounds (status)
+            CREATE INDEX IF NOT EXISTS idx_sounds_status ON Sounds (status, crc)
         "
     );
 
@@ -36,66 +37,94 @@ sub check_or_create_tables {
     return;
 }
 
-sub lookup {
-    my $class = shift;
-    my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
-    return {} unless @$words;
 
-    my $lcmap = {};
-    for my $w (@$words) {
-        my $crc = String::CRC32::crc32(lc $w);
-        if (exists $lcmap->{ $crc }) {
-            push @{ $lcmap->{ $crc } }, $w;
-        } else {
-            $lcmap->{ $crc } = [$w];
-        }
-    }
+sub get_crc {
+    my ($class, $crc) = @_;
+    return $class->get_crc_multi([$crc])->{$crc} || [];
+}
 
-    my $res = {};
-    my @crc_uniq = keys %$lcmap;
-    while (my @chunk = splice(@crc_uniq, 0, 100)) {
-        my $tmp_res = $class->instance->dbh->selectall_arrayref(
-            "SELECT crc, md5 FROM Sounds WHERE crc IN (".join(",", ('?')x@chunk).") AND status = 1",
-            { Slice => {} },
-            @chunk
-        ) or die $class->instance->dbh->errstr;
-        for (@$tmp_res) {
-            $res->{ $_->{crc} } ||= [];
-            push @{ $res->{ $_->{crc} } }, $_;
-        }
-    }
+
+sub get_crc_multi {
+    my ($class, $crcs) = @_;
+
+    my $db_links = $class->instance->dbh->selectall_arrayref(
+        "SELECT * FROM Sounds WHERE status = ? AND crc IN (".join(',', ('?') x @$crcs).")",
+        { Slice => {} },
+        $STATUS_GOOD,
+        @$crcs
+    ) or die $class->instance->dbh->errstr;
 
     my $ret = {};
-    for my $crc (keys %$lcmap) {
-        for my $source_word (@{ $lcmap->{$crc} }) {
-            if ($res->{$crc}) {
-                $ret->{$source_word} = $res->{$crc};
-            } else {
-                # empty array for not founded word
-                $ret->{$source_word} = [];
-            }
+    for (@$db_links) {
+        push @{ $ret->{ $_->{crc} } ||= [] }, $_;
+    }
+
+    return $ret;
+}
+
+
+sub get_multi {
+    my ($class, $words_str) = @_;
+
+    my $crc_map = {};
+    for (@$words_str) {
+        push @{ $crc_map->{ String::CRC32::crc32(lc $_) } ||= [] }, $_;
+    }
+    my $res = $class->get_crc_multi([keys %$crc_map]);
+
+    my $ret = {};
+    for my $crc (keys %$crc_map) {
+        for my $w ( @{$crc_map->{$crc}} ) {
+            $ret->{$w} = $res->{$crc} || [];
         }
     }
 
     return $ret;
 }
 
-sub add {
-    my ($class, $resolved) = @_;
-    return unless $resolved and %$resolved;
 
-    for my $res (values %$resolved) {
-        if ($res->{sounds} and @{$res->{sounds}}) {
-            for my $sound_desc (@{$res->{sounds}}) {
-                $class->instance->dbh->do(
-                    "INSERT OR IGNORE INTO Sounds(md5, crc, sound_url, status) VALUES (?, ?, ?, 0)",
-                    undef,
-                    Digest::MD5::md5_hex($res->{crc} . $sound_desc->{sound_url}), $res->{crc}, $sound_desc->{sound_url}
-                );
-            }
-        }
+sub get {
+    my ($class, $word_str) = @_;
+    return $class->get_multi([$word_str])->{$word_str};
+}
+
+
+sub add {
+    my ($class, $word) = @_;
+    return unless $word->{word} and $word->{sound} and @{$word->{sound}};
+    my $crc = String::CRC32::crc32(lc $word->{word});
+
+    for (@{ $word->{sound} }) {
+        $class->instance->dbh->do(
+            "INSERT OR IGNORE INTO Sounds(md5, crc, sound_url, status) VALUES (?, ?, ?, ?)",
+            undef,
+            Digest::MD5::md5_hex($crc . $_), $crc, $_, $STATUS_UNCHECKED
+        );
     }
 
+    return;
+}
+
+
+sub mark_as_good {
+    my ($class, $md5) = @_;
+    return $class->_mark_as($md5, $STATUS_GOOD);
+}
+
+
+sub mark_as_bad {
+    my ($class, $md5) = @_;
+    return $class->_mark_as($md5, $STATUS_BAD);
+}
+
+
+sub _mark_as {
+    my ($class, $md5, $status) = @_;
+    $class->instance->dbh->do(
+        "UPDATE Sounds SET status = ? WHERE md5 = ?",
+        undef,
+        $status, $md5
+    );
     return;
 }
 

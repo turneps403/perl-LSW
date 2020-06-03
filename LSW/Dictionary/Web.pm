@@ -8,7 +8,6 @@ use Module::Load qw();
 
 use AnyEvent;
 use AnyEvent::HTTP;
-# use XML::LibXML;
 
 use LSW::Dictionary::Web::UserAgent qw();
 
@@ -19,6 +18,7 @@ for ( Module::Util::find_in_namespace(__PACKAGE__ . "::Plugin") ) {
         push @$LSW::Dictionary::WebSeeker::plugins, $_;
     }
 }
+@$LSW::Dictionary::WebSeeker::plugins = sort { $b->weight <=> $a->weight } @$LSW::Dictionary::WebSeeker::plugins;
 
 sub resolve {
     my $class = shift;
@@ -41,10 +41,10 @@ sub resolve {
 
     my @tmp = keys %$lcmap;
     while (my @chunk = splice(@tmp, 0, $params->{chunk_size} || 3)) {
-        my $req = [];
+        my $reqs = [];
         for my $pl (@$LSW::Dictionary::WebSeeker::plugins) {
             for my $w (@chunk) {
-                push @$req, {
+                push @$reqs, {
                     url => $pl->create_url($w),
                     word => $w,
                     pl => $pl,
@@ -55,18 +55,36 @@ sub resolve {
             }
         }
 
-        $class->fetch_urls($req);
         my $retry = abs int ($params->{retry} || 3);
         while (
-            scalar(grep { $_->{status} == 0 } @$req)
+            scalar(grep { $_->{status} == 0 } @$reqs)
             or $retry--
         ) {
-            $class->parse_urls($req);
-            unless (grep { $_->{status} == 500 } @$req) {
+            $class->fetch_urls($reqs);
+            unless (grep { $_->{status} == 500 } @$reqs) {
                 last;
             }
-            sleep(1);
+            sleep(1); # TODO: reinvoke over queue
         }
+
+        for my $req (@$reqs) {
+            next unless $req->{body};
+            my $main_word = $req->{pl}->search_main_word($req->{body});
+            if ($main_word->{word}) {
+                LSW::Dictionary->instance->db->add_word($main_word);
+                my $derivatives = $req->{pl}->search_derivatives_words($req->{body});
+                for my $dw (@$derivatives) {
+                    LSW::Dictionary->instance->db->add_word($dw);
+                    LSW::Dictionary->instance->db->add_fk($main_word, $dw);
+                    LSW::Dictionary->instance->db->add_research($dw);
+                }
+            } else {
+                # TODO: to trash
+                
+            }
+        }
+
+        $class->parse_urls($req);
         1;
         # for my $r (@$req) {
         #     next unless $r->{body};
@@ -104,14 +122,6 @@ sub resolve {
     1;
 }
 
-sub parse_urls {
-    my ($class, $req) = @_;
-    for my $r (@$req) {
-        next unless $r->{body};
-        $r->{res} = $r->{pl}->parse($r->{body});
-    }
-    return;
-}
 
 sub fetch_urls {
     my ($class, $req) = @_;

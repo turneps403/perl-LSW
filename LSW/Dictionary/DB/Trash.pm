@@ -26,58 +26,64 @@ sub check_or_create_tables {
     return;
 }
 
-sub lookup {
+
+sub add {
     my $class = shift;
     my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
-    return {} unless @$words;
 
-    my $lcmap = {};
-    for my $w (@$words) {
-        my $crc = String::CRC32::crc32(lc $w);
-        if (exists $lcmap->{ $crc }) {
-            push @{ $lcmap->{ $crc } }, $w;
-        } else {
-            $lcmap->{ $crc } = [$w];
-        }
+    for my $lc_w (uniq map {lc} @$words) {
+        $class->instance->dbh->do(
+            "INSERT OR IGNORE INTO TrashWords(crc, word) VALUES (?, ?)",
+            undef,
+            String::CRC32::crc32($lc_w), $lc_w
+        );
     }
 
-    my $res = {};
-    my @crc_uniq = keys %$lcmap;
-    while (my @chunk = splice(@crc_uniq, 0, 100)) {
-        my $tmp_res = $class->instance->dbh->selectall_arrayref(
-            "SELECT * FROM TrashWords WHERE crc IN (".join(",", ('?')x@chunk).")",
-            { Slice => {} },
-            @chunk
-        ) or die $class->instance->dbh->errstr;
-        for (@$tmp_res) {
-            $res->{ $_->{crc} } = 1;
-        }
-    }
+    return;
+}
+
+
+sub get_crc_multi {
+    my ($class, $crcs) = @_;
+
+    my $db_trash = $class->instance->dbh->selectall_arrayref(
+        "SELECT * FROM TrashWords WHERE crc IN (".join(',', ('?') x @$crcs).")",
+        { Slice => {} },
+        @$crcs
+    ) or die $class->instance->dbh->errstr;
 
     my $ret = {};
-    for my $crc (keys %$lcmap) {
-        for my $source_word (@{ $lcmap->{$crc} }) {
-            $ret->{$source_word} = $res->{$crc} ? 1 : 0;
+    for (@$db_trash) {
+        $ret->{ $_->{crc} } = $_;
+    }
+
+    return $ret;
+}
+
+sub get_multi {
+    my ($class, $words_str) = @_;
+
+    my $crc_map = {};
+    for (@$words_str) {
+        push @{ $crc_map->{ String::CRC32::crc32(lc $_) } ||= [] }, $_;
+    }
+    my $res = $class->get_crc_multi([keys %$crc_map]);
+
+    my $ret = {};
+    for my $crc (keys %$crc_map) {
+        for my $w ( @{$crc_map->{$crc}} ) {
+            $ret->{$w} = $res->{$crc} if $res->{$crc};
         }
     }
 
     return $ret;
 }
 
-sub add {
-    my $class = shift;
-    my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
-
-    for my $w (uniq map {lc} @$words) {
-        $class->instance->dbh->do(
-            "INSERT INTO TrashWords(crc, word) VALUES (?, ?)",
-            undef,
-            String::CRC32::crc32($w), $w
-        );
-    }
-
-    return;
+sub get {
+    my ($class, $word_str) = @_;
+    return $class->get_multi([$word_str])->{$word_str};
 }
+
 
 1;
 __END__

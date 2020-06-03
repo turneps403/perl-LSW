@@ -7,6 +7,7 @@ use List::MoreUtils qw(uniq);
 use base qw(LSW::Dictionary::DB::Base);
 
 $LSW::Dictionary::DB::Queue::TTR = 3600;
+$LSW::Dictionary::DB::Queue::MAXTRY = 3;
 
 sub check_or_create_tables {
     my $self = shift;
@@ -16,7 +17,8 @@ sub check_or_create_tables {
             -- mark new words to investigation
             CREATE TABLE IF NOT EXISTS WordsQueue (
                 word VARCHAR(255) NOT NULL PRIMARY KEY,
-                atime INTEGER NOT NULL
+                atime INTEGER NOT NULL,
+                trycnt INTEGER DEFAULT 0
             )
         ",
         "
@@ -47,6 +49,15 @@ sub add {
     return;
 }
 
+sub set_time {
+    my ($class, $event, $time) = @_;
+    return $class->instance->dbh->do(
+        "UPDATE WordsQueue SET atime = ?, trycnt = trycnt + 1 WHERE word = ? AND atime = ?",
+        undef,
+        $time, $event->{word}, $event->{atime}
+    );
+}
+
 sub get {
     my ($class, $limit) = @_;
     $limit ||= 1;
@@ -59,20 +70,19 @@ sub get {
 
     return [] unless @$applicants;
 
-    my @words = ();
-    for my $row (@$applicants) {
-        # optimistic locking
-        my $lock = $class->instance->dbh->do(
-            "UPDATE WordsQueue SET atime = ? WHERE word = ? AND atime = ?",
-            undef,
-            time + $LSW::Dictionary::DB::Queue::TTR, $row->{word}, $row->{atime}
-        );
-        if (int $lock) {
-            push @words, $row->{word};
+    my @events = ();
+    for my $e (@$applicants) {
+        if ($e->{trycnt} > $LSW::Dictionary::DB::Queue::MAXTRY) {
+            $class->delete($e->{word});
+        } else {
+            if (int $class->set_time($e, time + $LSW::Dictionary::DB::Queue::TTR)) {
+                # remember about 0E0
+                push @events, $e;
+            }
         }
     }
 
-    return \@words;
+    return \@events;
 }
 
 sub delete {

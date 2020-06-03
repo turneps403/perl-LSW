@@ -5,27 +5,18 @@ use warnings;
 use base qw(LSW::Dictionary::DB::Base);
 use String::CRC32 qw();
 
+
 sub check_or_create_tables {
     my $self = shift;
 
     my @q = (
         "
-            -- just words with ipa, sometimes ipa doesn't exists
+            -- just words with ipa, ipa is optional
             CREATE TABLE IF NOT EXISTS Words (
                 crc INTEGER NOT NULL PRIMARY KEY,
             	word VARCHAR(255) NOT NULL,
                 ipa VARCHAR(255)
             )
-        ",
-        "
-            -- to describe word lekation to others words
-            CREATE TABLE IF NOT EXISTS WordLinks (
-                crc INTEGER NOT NULL,
-                fk INTEGER NOT NULL
-            )
-        ",
-        "
-             CREATE UNIQUE INDEX IF NOT EXISTS idx_sounds_crc ON WordLinks (crc, fk)
         "
     );
 
@@ -36,83 +27,71 @@ sub check_or_create_tables {
     return;
 }
 
-sub lookup {
-    my $class = shift;
-    my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
-    return {} unless @$words;
 
-    my $lcmap = {};
-    for my $w (@$words) {
-        my $crc = String::CRC32::crc32(lc $w);
-        if (exists $lcmap->{ $crc }) {
-            push @{ $lcmap->{ $crc } }, $w;
-        } else {
-            $lcmap->{ $crc } = [$w];
-        }
+sub add {
+    my ($class, $word) = @_;
+    return unless $word->{word};
+    $word->{crc} ||= String::CRC32::crc32(lc $_);
+
+    my $db_word = $class->get($word->{word});
+    unless ($db_word) {
+        $class->instance->dbh->do(
+            "INSERT OR IGNORE INTO Words(crc, word, ipa) VALUES (?, ?, ?)",
+            undef,
+            $word->{crc}, $word->{word}, $word->{ipa} || ''
+        );
+    } elsif ($word->{ipa} and not $db_word->{ipa}) {
+        $class->instance->dbh->do(
+            "UPDATE Words SET ipa = ? WHERE crc = ?",
+            undef,
+            $word->{ipa}, $word->{crc}
+        );
     }
 
-    my $res = {};
-    my @crc_uniq = keys %$lcmap;
-    while (my @chunk = splice(@crc_uniq, 0, 100)) {
-        my $tmp_res = $class->instance->dbh->selectall_hashref(
-            "SELECT * FROM Words WHERE crc IN (".join(",", ('?')x@chunk).")",
-            "crc", {},
-            @chunk
-        ) or die $class->instance->dbh->errstr;
+    return;
+}
 
-        $_->{fk}  = [] for values %$tmp_res;
+sub get_crc_multi {
+    my ($class, $crcs) = @_;
 
-        if (%$tmp_res) {
-            my $db_links = $class->instance->dbh->selectall_arrayref(
-                "SELECT * FROM WordLinks WHERE crc IN (".join(",", ('?')x(keys %$tmp_res)).")",
-                { Slice => {} },
-                keys %$tmp_res
-            ) or die $class->instance->dbh->errstr;
-            for (@$db_links) {
-                push @{ $tmp_res->{ $_->{crc} }->{fk} }, $_->{fk}
-            }
-        }
-        @$res{ keys %$tmp_res } = values %$tmp_res;
-    }
+    my $db_words = $class->instance->dbh->selectall_arrayref(
+        "SELECT * FROM Words WHERE crc IN (".join(',', ('?') x @$crcs).")",
+        { Slice => {} },
+        @$crcs
+    ) or die $class->instance->dbh->errstr;
 
     my $ret = {};
-    for my $crc (keys %$lcmap) {
-        for my $source_word (@{ $lcmap->{$crc} }) {
-            if ($res->{$crc}) {
-                $ret->{$source_word} = $res->{$crc};
-            } else {
-                # empty hash for not founded word
-                $ret->{$source_word} = {};
-            }
+    for (@$db_words) {
+        $ret->{ $_->{crc} } = $_;
+    }
+
+    return $ret;
+}
+
+sub get_multi {
+    my ($class, $words_str) = @_;
+
+    my $crc_map = {};
+    for (@$words_str) {
+        push @{ $crc_map->{ String::CRC32::crc32(lc $_) } ||= [] }, $_;
+    }
+    my $res = $class->get_crc_multi([keys %$crc_map]);
+
+    my $ret = {};
+    for my $crc (keys %$crc_map) {
+        for my $w ( @{$crc_map->{$crc}} ) {
+            $ret->{$w} = $res->{$crc};
         }
     }
 
     return $ret;
 }
 
-sub add {
-    my ($class, $resolved) = @_;
-    return unless $resolved and %$resolved;
-
-    for my $res (values %$resolved) {
-        $class->instance->dbh->do(
-            "INSERT OR IGNORE INTO Words(crc, word, ipa) VALUES (?, ?, ?)",
-            undef,
-            $res->{crc}, $res->{word}, $res->{ipa}
-        );
-        if ($res->{fk} and @{$res->{fk}}) {
-            for my $fk (@{$res->{fk}}) {
-                $class->instance->dbh->do(
-                    "INSERT OR IGNORE INTO WordLinks(crc, fk) VALUES (?, ?)",
-                    undef,
-                    $res->{crc}, $fk
-                );
-            }
-        }
-    }
-
-    return;
+sub get {
+    my ($class, $word_str) = @_;
+    return $class->get_multi([$word_str])->{$word_str};
 }
+
 
 1;
 __END__
