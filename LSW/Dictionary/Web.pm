@@ -80,7 +80,7 @@ sub resolve {
                 }
             } else {
                 # TODO: to trash
-                
+
             }
         }
 
