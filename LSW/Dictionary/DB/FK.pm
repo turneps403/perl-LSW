@@ -30,21 +30,23 @@ sub check_or_create_tables {
 
 
 sub add {
-    my ($class, $word, $derivative) = @_;
+    my ($class, $word, $derivative, $one_way_graph) = @_;
+    # use $one_way_graph as true when plagin responded with 200 but another word
     return unless $word->{word} and $derivative->{word};
-    # both directed link
     $class->instance->dbh->do(
         "INSERT OR IGNORE INTO WordLinks(crc, fk) VALUES (?, ?)",
         undef,
         String::CRC32::crc32(lc $word->{word}),
         String::CRC32::crc32(lc $derivative->{word})
     );
-    $class->instance->dbh->do(
-        "INSERT OR IGNORE INTO WordLinks(crc, fk) VALUES (?, ?)",
-        undef,
-        String::CRC32::crc32(lc $derivative->{word}),
-        String::CRC32::crc32(lc $word->{word})
-    );
+    unless ($one_way_graph) {
+        $class->instance->dbh->do(
+            "INSERT OR IGNORE INTO WordLinks(crc, fk) VALUES (?, ?)",
+            undef,
+            String::CRC32::crc32(lc $derivative->{word}),
+            String::CRC32::crc32(lc $word->{word})
+        );
+    }
 
     return;
 }

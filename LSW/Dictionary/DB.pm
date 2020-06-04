@@ -29,6 +29,12 @@ sub add_fk {
     return;
 }
 
+sub add_symbolic_link {
+    my ($class, $word, $derivative) = @_;
+    $class->fk->add($word, $derivative, 'symbolic link to other word');
+    return;
+}
+
 
 sub lookup {
     my ($class, $words, $opt) = @_;
