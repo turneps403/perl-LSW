@@ -30,12 +30,21 @@ use LSW::Dictionary;
     $opts->{db_folder} =~ s/^~/File::HomeDir->my_home/e;
     my $db_folder = File::Spec->rel2abs($opts->{db_folder});
     $db_folder = Cwd::realpath($db_folder);
+    unless (-d $db_folder) {
+        die "No --db_folder specified!";
+    }
 
-    unless (-f $opts->{file}) {
+    unless ($opts->{file}) {
+        die "No --file specified!";
+    }
+    $opts->{file} =~ s/^~/File::HomeDir->my_home/e;
+    my $file = File::Spec->rel2abs($opts->{file});
+    $file = Cwd::realpath($file);
+    unless (-f $file and -s _) {
         die "No --file specified!";
     }
 
-    open(IN, "<", $opts->{file}) or die $!;
+    open(IN, "<", $file) or die $!;
         my $content = join('', <IN>);
     close(IN);
 

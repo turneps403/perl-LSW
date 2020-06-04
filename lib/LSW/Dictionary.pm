@@ -21,7 +21,7 @@ sub new {
 
     # words_db_path is a dafault database
     LSW::Dictionary::DB->words->init($params->{words_db_path});
-    LSW::Dictionary::DB->words->init($params->{fk_db_path} || $params->{words_db_path});
+    LSW::Dictionary::DB->fk->init($params->{fk_db_path} || $params->{words_db_path});
     LSW::Dictionary::DB->sounds->init($params->{sounds_db_path} || $params->{words_db_path});
     LSW::Dictionary::DB->trash->init($params->{trash_db_path} || $params->{words_db_path});
     LSW::Dictionary::DB->queue->init($params->{queue_db_path} || $params->{words_db_path});
