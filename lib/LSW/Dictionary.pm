@@ -31,7 +31,7 @@ sub new {
 sub db() { "LSW::Dictionary::DB" }
 sub web() { "LSW::Dictionary::Web" }
 
-sub lookup {
+sub db_lookup {
     my $self = shift;
     return unless @_;
     my $params = {};
@@ -44,6 +44,15 @@ sub lookup {
     return $self->db->lookup($words, { queue_enable => $self->{queue_enable} });
 }
 
+sub web_lookup {
+    my ($self, $limit) = @_;
+
+    my $events = $self->db->queue->get($limit);
+    return unless @$events;
+
+    $self->web->resolve([map { $_->{word} } @$events]);
+    return 1;
+}
 
 1;
 __END__

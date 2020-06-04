@@ -80,6 +80,7 @@ sub resolve {
                 # TODO: to trash
                 LSW::Dictionary::DB->trash->add($req->{word});
             }
+            LSW::Dictionary::DB->queue->del($req->{word});
         }
     }
 

@@ -51,7 +51,7 @@ use LSW::Dictionary;
     my @words = $content =~ /(\w{1,240})/g;
 
     my $lsw = LSW::Dictionary->new(db_folder => $db_folder, queue_enable => 1);
-    my $ipa_dict = $lsw->lookup(@words);
+    my $ipa_dict = $lsw->db_lookup(@words);
 
     $content =~ s/(\w{1,240})/$ipa_dict->{$1} ? "$1 (".$ipa_dict->{$1}->{ipa}.")" : "-$1-"/seg;
 
@@ -59,3 +59,5 @@ use LSW::Dictionary;
 
 exit;
 __END__
+
+perl -I lib/ -d bin/words_resolver.pl --db_folder=~/tmp/lsw --file=~/tmp/lsw/test.txt

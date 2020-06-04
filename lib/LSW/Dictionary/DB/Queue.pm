@@ -85,7 +85,7 @@ sub get {
     return \@events;
 }
 
-sub delete {
+sub del {
     my $class = shift;
     my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
     return unless @$words;

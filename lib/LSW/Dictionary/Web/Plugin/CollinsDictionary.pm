@@ -41,6 +41,7 @@ sub search_main_word {
     # <h2 class="h2_entry"><span class="orth">talk</span></h2>
     my ($word) = $html =~ /<h2\s+class="h2_entry">\s*<span\s+class="orth">\s*([^<]+)\s*<\/span>\s*<\/h2>/is;
     return $ret unless $word;
+    $ret->{word} = $word;
 
     ## SOUND
     # <a class="hwd_sound sound audio_play_button icon-volume-up ptr" title="Pronunciation for talk" data-src-mp3="https://www.collinsdictionary.com/sounds/hwd_sounds/55710.mp3" data-lang="en_GB"></a>
@@ -72,7 +73,7 @@ sub search_derivatives_words {
     my $ret = [];
     #<span class="orth"> talks</span><span class="ptr hwd_sound type-hwd_sound">
     #<a class="hwd_sound sound audio_play_button icon-volume-up ptr" title="Pronunciation for talks" data-src-mp3="https://www.collinsdictionary.com/sounds/hwd_sounds/55737.mp3" data-lang="en_GB"></a>
-    my @others = $html =~ /<span\s+class="orth">([^<]+)<\/span>\s*<span\s+class="ptr\s+hwd_sound\s+type-hwd_sound">\s*<a\s+class="hwd_sound\s+.+?data-src-mp3="([^"]+)"/s;
+    my @others = $html =~ /<span\s+class="orth">([^<]+)<\/span>\s*<span\s+class="ptr\s+hwd_sound\s+type-hwd_sound">\s*<a\s+class="hwd_sound\s+.+?data-src-mp3="([^"]+)"/sg;
     while (my @chunk = splice(@others, 0, 2)) {
         my ($fk_word, $fk_sound) = @chunk;
         push @$ret, {

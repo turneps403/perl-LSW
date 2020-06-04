@@ -31,7 +31,7 @@ sub check_or_create_tables {
 sub add {
     my ($class, $word) = @_;
     return unless $word->{word};
-    $word->{crc} ||= String::CRC32::crc32(lc $_);
+    $word->{crc} ||= String::CRC32::crc32(lc $word->{word});
 
     my $db_word = $class->get($word->{word});
     unless ($db_word) {
