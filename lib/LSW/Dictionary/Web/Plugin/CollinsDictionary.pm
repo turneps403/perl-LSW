@@ -21,8 +21,8 @@ sub _escape {
     my $token = shift;
     $token =~ s/</&lt;/g;
     $token =~ s/>/&gt;/g;
-    $token ~= /^\s+//;
-    $token ~= /\s+$//;
+    $token =~ s/^\s+//;
+    $token =~ s/\s+$//;
     return lc $token;
 }
 
@@ -72,7 +72,7 @@ sub search_derivatives_words {
     my $ret = [];
     #<span class="orth"> talks</span><span class="ptr hwd_sound type-hwd_sound">
     #<a class="hwd_sound sound audio_play_button icon-volume-up ptr" title="Pronunciation for talks" data-src-mp3="https://www.collinsdictionary.com/sounds/hwd_sounds/55737.mp3" data-lang="en_GB"></a>
-    my @others = $html =~ /<span\s+class="orth">([^<]+)</span>\s*<span\s+class="ptr\s+hwd_sound\s+type-hwd_sound">\s*<a\s+class="hwd_sound\s+.+?data-src-mp3="([^"]+)"/;
+    my @others = $html =~ /<span\s+class="orth">([^<]+)<\/span>\s*<span\s+class="ptr\s+hwd_sound\s+type-hwd_sound">\s*<a\s+class="hwd_sound\s+.+?data-src-mp3="([^"]+)"/s;
     while (my @chunk = splice(@others, 0, 2)) {
         my ($fk_word, $fk_sound) = @chunk;
         push @$ret, {

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use strict;
-use warnins;
+use warnings;
 
 use File::Spec;
 use Cwd qw();
@@ -31,11 +31,11 @@ use LSW::Dictionary;
     my $db_folder = File::Spec->rel2abs($opts->{db_folder});
     $db_folder = Cwd::realpath($db_folder);
 
-    unless (-f $file) {
+    unless (-f $opts->{file}) {
         die "No --file specified!";
     }
 
-    open(IN, "<", $file) or die $!;
+    open(IN, "<", $opts->{file}) or die $!;
         my $content = join('', <IN>);
     close(IN);
 
