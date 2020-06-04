@@ -38,6 +38,20 @@ sub check_or_create_tables {
 }
 
 
+sub get_unchecked {
+    my ($class, $limit) = @_;
+    $limit ||= 1;
+    my $db_links = $class->instance->dbh->selectall_arrayref(
+        "SELECT * FROM Sounds WHERE status = ? LIMIT ?",
+        { Slice => {} },
+        $STATUS_UNCHECKED,
+        $limit
+    ) or die $class->instance->dbh->errstr;
+
+    return $db_links;
+}
+
+
 sub get_crc {
     my ($class, $crc) = @_;
     return $class->get_crc_multi([$crc])->{$crc} || [];
