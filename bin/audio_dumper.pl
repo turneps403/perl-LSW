@@ -8,8 +8,8 @@ use File::HomeDir;
 
 use LWP::UserAgent qw();
 use Getopt::Long;
+use LSW::Log;
 use LSW::Dictionary;
-
 
     my $opts = {
         db_folder => '',
@@ -44,7 +44,8 @@ use LSW::Dictionary;
     while (1) {
         my $audio = LSW::Dictionary::DB->sounds->get_unchecked(1);
         unless (@$audio) {
-            sleep(5);
+            log_info("No audio file");
+            sleep(60);
             next;
         }
 
@@ -57,9 +58,11 @@ use LSW::Dictionary;
             $lwp->protocols_allowed( [ 'http', 'https'] );
             $lwp->timeout(15);
             unless ($lwp->mirror($aevent->{sound_url}, $localname)->{'_rc'} == 200) {
+                log_warn("Fail with url", $aevent->{sound_url}, "for", $aevent->{md5});
                 LSW::Dictionary::DB->sounds->mark_as_bad($aevent->{md5});
                 unlink $localname;
             } else {
+                log_info("Success create", $localname, "from url", $aevent->{sound_url});
                 LSW::Dictionary::DB->sounds->mark_as_good($aevent->{md5});
             }
             sleep(1);
