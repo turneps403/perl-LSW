@@ -96,10 +96,11 @@ sub lookup {
         for my $source_word (@{ $crcmap->{$crc} }) {
             if ($res->{$crc}) {
                 $ret->{$source_word} = $res->{$crc};
-            } else {
-                # empty hash for not founded word
-                $ret->{$source_word} = {};
             }
+            # else {
+            #     # empty hash for not founded word
+            #     $ret->{$source_word} = {};
+            # }
         }
     }
 

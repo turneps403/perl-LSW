@@ -2,13 +2,34 @@
 use strict;
 use warnins;
 
+use File::Spec;
+use Cwd qw();
+use File::HomeDir;
+
 use Getopt::Long;
 use LSW::Dictionary;
 
+=pod
+
+    Simple example for translate small files
+
+=cut
+
+    my $opts = {
+        file => '',
+        db_folder => ''
+    };
     GetOptions(
-        "file=s" => \my $file,
-        "words_db_path=s" => \my $words_db_path,
+        "file=s" => \$opts->{file},
+        "db_folder=s" => \$opts->{db_folder},
     );
+
+    unless ($opts->{db_folder}) {
+        die "No --db_folder specified!";
+    }
+    $opts->{db_folder} =~ s/^~/File::HomeDir->my_home/e;
+    my $db_folder = File::Spec->rel2abs($opts->{db_folder});
+    $db_folder = Cwd::realpath($db_folder);
 
     unless (-f $file) {
         die "No --file specified!";
@@ -20,10 +41,10 @@ use LSW::Dictionary;
 
     my @words = $content =~ /(\w{1,240})/g;
 
-    my $lsw = LSW::Dictionary->new(words_db_path => $words_db_path);
-    my $ipa_dict = $lsw->words2ipa(@words);
+    my $lsw = LSW::Dictionary->new(db_folder => $db_folder, queue_enable => 1);
+    my $ipa_dict = $lsw->lookup(@words);
 
-    $content =~ s/(\w+)/$lsw->get($1) || "-$1-"/seg;
+    $content =~ s/(\w{1,240})/$ipa_dict->{$1} ? "$1 (".$ipa_dict->{$1}->{ipa}.")" : "-$1-"/seg;
 
     print $content . "\n";
 

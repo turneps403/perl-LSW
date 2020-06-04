@@ -3,7 +3,6 @@ use strict;
 use warnings;
 
 use List::MoreUtils qw(uniq);
-use String::CRC32 qw();
 use Module::Util qw();
 use Module::Load qw();
 
