@@ -10,21 +10,22 @@ use Plack::App::File;
 
 use LSW::Log;
 
+use File::Basename;
+my $static_prefix = File::Spec->catdir(dirname(__FILE__), "static");
+
 sub static {
     my $req = shift;
     my $res = $req->new_response(200);
 
     my $path_info = $req->path_info;
     $path_info = "/index.html" if $path_info eq "/";
-    $path_info = "static".$path_info;
+    $path_info = File::Spec->catfile($static_prefix, $path_info);
+    log_dbg("Try to \$path_info =", $path_info);
 
-    my $file = File::Spec->rel2abs($path_info);
-    $file = Cwd::realpath($file);
-    die "No file by path ".$req->path_info unless $file;
+    my $file = Cwd::realpath($path_info);
+    die "No file by path ".$req->path_info unless $file and -f $file;
 
-    my $valid_start = File::Spec->rel2abs("static");
-    # log_info([$path_info, $file, $valid_start]);
-    die "No file by path ".$req->path_info unless index($file, $valid_start) == 0;
+    die "No file by path ".$req->path_info unless index($file, $static_prefix."/") == 0;
 
     my $mime = MIME::Types->new->mimeTypeOf($file);
     die "No file by path ".$req->path_info unless $mime;
@@ -82,8 +83,8 @@ my $app = sub {
             my $res = $req->new_response(500);
             $res->content_type("text/plain");
             $res->body($@);
-            $res->finalize;
         }
+        $res->finalize;
     } else {
         my $res = $req->new_response(404);
         $res->content_type("text/html");
