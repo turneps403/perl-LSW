@@ -5,6 +5,8 @@ use warnings;
 use base qw(LSW::Dictionary::DB::Base);
 use String::CRC32 qw();
 
+use LSW::Log;
+
 sub check_or_create_tables {
     my $self = shift;
 
@@ -39,6 +41,7 @@ sub add {
         String::CRC32::crc32(lc $word->{word}),
         String::CRC32::crc32(lc $derivative->{word})
     );
+    log_info("added link", [lc $word->{word}, lc $derivative->{word}]);
     unless ($one_way_graph) {
         $class->instance->dbh->do(
             "INSERT OR IGNORE INTO WordLinks(crc, fk) VALUES (?, ?)",
@@ -46,6 +49,7 @@ sub add {
             String::CRC32::crc32(lc $derivative->{word}),
             String::CRC32::crc32(lc $word->{word})
         );
+        log_info("added link", [lc $derivative->{word}, lc $word->{word}]);
     }
 
     return;

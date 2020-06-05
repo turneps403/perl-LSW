@@ -25,14 +25,25 @@ sub _log {
         return;
     }
 
-    local $Data::Dumper::Indent = 0;
     my ($pkg, $line) = (caller(1))[0, 2];
+
+    local $Data::Dumper::Indent = 0;
+    my @args = ();
+    for (@_) {
+        if (ref $_) {
+            # just remove '$VAR1 = ' and ';'
+            push @args, substr(Data::Dumper::Dumper($_), 8, -1);
+        } else {
+            push @args, defined $_ ? $_ : 'undef';
+        }
+    }
+
     my $log_str = sprintf(
         '%s [%d:%s] %s (%s at line %d)%s',
         scalar localtime time,
         $$,
         $level,
-        join(' ', map { ref $_ ? Data::Dumper::Dumper($_) : (defined $_ ? $_ : 'undef') } @_),
+        join(' ', @args),
         $pkg,
         $line,
         "\n"

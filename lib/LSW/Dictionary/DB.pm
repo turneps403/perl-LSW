@@ -5,6 +5,8 @@ use warnings;
 use Module::Util qw();
 use Module::Load qw();
 
+use LSW::Log;
+
 for ( Module::Util::find_in_namespace(__PACKAGE__) ) {
     next if /::Base$/;
     Module::Load::load($_) unless Module::Util::module_is_loaded($_);
@@ -81,6 +83,9 @@ sub lookup {
                 @not_found = grep { not $with_fk_only->{$_} } @not_found;
                 if (@not_found) {
                     my $trash = $class->trash->get_crc_multi(\@not_found);
+                    if (keys %$trash) {
+                        log_info("Found trash words:", map { $crcmap->{$_} } keys %$trash);
+                    }
                     my @new_words_crc = grep { not $trash->{$_} } @not_found;
                     if (@new_words_crc) {
                         # to queue
@@ -103,7 +108,7 @@ sub lookup {
             # }
         }
     }
-
+    log_dbg("Ret from db:", $ret);
     return $ret;
 }
 

@@ -5,6 +5,7 @@ use warnings;
 use String::CRC32 qw();
 use List::MoreUtils qw(uniq);
 
+use LSW::Log;
 use base qw(LSW::Dictionary::DB::Base);
 
 sub check_or_create_tables {
@@ -32,11 +33,13 @@ sub add {
     my $words = ref $_[0] eq "ARRAY" ? $_[0] : \@_;
 
     for my $lc_w (uniq map {lc} @$words) {
-        $class->instance->dbh->do(
+        if ($class->instance->dbh->do(
             "INSERT OR IGNORE INTO TrashWords(crc, word) VALUES (?, ?)",
             undef,
             String::CRC32::crc32($lc_w), $lc_w
-        );
+        )) {
+            log_info("Added trash", [$lc_w]);
+        }
     }
 
     return;

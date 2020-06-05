@@ -5,6 +5,7 @@ use warnings;
 use String::CRC32 qw();
 use Digest::MD5 qw();
 
+use LSW::Log;
 use base qw(LSW::Dictionary::DB::Base);
 
 my $STATUS_UNCHECKED = 0;
@@ -109,11 +110,13 @@ sub add {
     my $crc = String::CRC32::crc32(lc $word->{word});
 
     for (@{ $word->{sound} }) {
-        $class->instance->dbh->do(
+        if ($class->instance->dbh->do(
             "INSERT OR IGNORE INTO Sounds(md5, crc, sound_url, status) VALUES (?, ?, ?, ?)",
             undef,
             Digest::MD5::md5_hex($crc . $_), $crc, $_, $STATUS_UNCHECKED
-        );
+        )) {
+            log_info("Added sound", [Digest::MD5::md5_hex($crc . $_), $crc, $_]);
+        }
     }
 
     return;
@@ -122,12 +125,14 @@ sub add {
 
 sub mark_as_good {
     my ($class, $md5) = @_;
+    log_info("Sound $md5 marked as good");
     return $class->_mark_as($md5, $STATUS_GOOD);
 }
 
 
 sub mark_as_bad {
     my ($class, $md5) = @_;
+    log_info("Sound $md5 marked as bad");
     return $class->_mark_as($md5, $STATUS_BAD);
 }
 

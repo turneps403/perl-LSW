@@ -4,6 +4,7 @@ use warnings;
 
 use List::MoreUtils qw(uniq);
 
+use LSW::Log;
 use base qw(LSW::Dictionary::DB::Base);
 
 $LSW::Dictionary::DB::Queue::TTR = 3600;
@@ -39,11 +40,13 @@ sub add {
     return unless @$words;
 
     for my $w (uniq map {lc} @$words) {
-        $class->instance->dbh->do(
+        if ($class->instance->dbh->do(
             "INSERT OR IGNORE INTO WordsQueue(word, atime) VALUES (?, ?)",
             undef,
             $w, time
-        );
+        )) {
+            log_info("Added queue event for", $w);
+        }
     }
 
     return;
@@ -91,11 +94,13 @@ sub del {
     return unless @$words;
 
     for my $w (uniq map {lc} @$words) {
-        $class->instance->dbh->do(
+        if ($class->instance->dbh->do(
             "DELETE FROM WordsQueue WHERE word = ?",
             undef,
             $w
-        );
+        )) {
+            log_info("Remove queue event for", $w);
+        }
     }
 
     return;

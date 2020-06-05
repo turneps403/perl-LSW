@@ -7,6 +7,7 @@ use Cwd qw();
 use File::HomeDir;
 
 use Getopt::Long;
+use LSW::Log;
 use LSW::Dictionary;
 
 =pod
@@ -39,8 +40,10 @@ use LSW::Dictionary;
     while (1) {
         my $cnt = $lsw->web_lookup($opts->{limit});
         if ($cnt) {
+            log_info("Some words were lookuped");
             sleep(1);
         } else {
+            log_info("No new words were found in queue");
             sleep(5);
         }
     }

@@ -2,6 +2,7 @@ package LSW::Dictionary::DB::Words;
 use strict;
 use warnings;
 
+use LSW::Log;
 use base qw(LSW::Dictionary::DB::Base);
 use String::CRC32 qw();
 
@@ -35,17 +36,21 @@ sub add {
 
     my $db_word = $class->get($word->{word});
     unless ($db_word) {
-        $class->instance->dbh->do(
+        if ($class->instance->dbh->do(
             "INSERT OR IGNORE INTO Words(crc, word, ipa) VALUES (?, ?, ?)",
             undef,
             $word->{crc}, $word->{word}, $word->{ipa} || ''
-        );
+        )) {
+            log_info("Added new word:", [$word->{crc}, $word->{word}, $word->{ipa} || '']);
+        }
     } elsif ($word->{ipa} and not $db_word->{ipa}) {
-        $class->instance->dbh->do(
+        if ($class->instance->dbh->do(
             "UPDATE Words SET ipa = ? WHERE crc = ?",
             undef,
             $word->{ipa}, $word->{crc}
-        );
+        )) {
+            log_info("Added ipa ", $word->{ipa}, "to word:", [$db_word->{word}]);
+        }
     }
 
     return;

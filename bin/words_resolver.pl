@@ -7,6 +7,7 @@ use Cwd qw();
 use File::HomeDir;
 
 use Getopt::Long;
+use LSW::Log;
 use LSW::Dictionary;
 
 =pod
@@ -49,6 +50,7 @@ use LSW::Dictionary;
     close(IN);
 
     my @words = $content =~ /(\w{1,240})/g;
+    log_info("Try to resolve words:", \@words);
 
     my $lsw = LSW::Dictionary->new(db_folder => $db_folder, queue_enable => 1);
     my $ipa_dict = $lsw->db_lookup(@words);
