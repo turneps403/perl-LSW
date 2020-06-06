@@ -1,12 +1,43 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8;" />
-<title>LSW</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8;" />
+    <title>LSW</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
 </head>
 <body>
 
-    Alive
+<form>
+    <label>text:</label><br/>
+    <textarea name="name" rows="8" cols="180" id="text"></textarea><br/>
+    <input type="button" value="translate" id="button_translate">
+</form>
+<div>
+    <label>answer:</label><br>
+    <div id="answer"></div>
+</div>
+
+<script>
+    // Attach a submit handler to the form
+    $( "#button_translate" ).submit(function( event ) {
+        // Stop form from submitting normally
+        event.preventDefault();
+
+        // Get some values from elements on the page:
+        var $form = $( this ),
+        term = $form.find( "input[name='s']" ).val(),
+        url = $form.attr( "action" );
+
+        // Send the data using post
+        var posting = $.post( url, { s: term } );
+
+        // Put the results in a div
+        posting.done(function( data ) {
+        var content = $( data ).find( "#content" );
+        $( "#result" ).empty().append( content );
+        });
+    });
+</script>
 
 </body>
 </html>

@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 
+use JSON::XS qw();
 use Cwd qw();
 use File::Spec;
 use MIME::Types;
@@ -39,6 +40,14 @@ sub static {
     return $res;
 }
 
+sub pong {
+    my $req = shift;
+    my $res = $req->new_response(200);
+    my $pong = lc $req->parameters->{pong};
+    $res->body({ pong => $pong });
+    return $res;
+}
+
 sub add_word {
     my $req = shift;
     my $res = $req->new_response(200);
@@ -51,7 +60,8 @@ sub add_word {
 my $home_router = [
     [ "/" => \&static ],
     [ qr/^\/(img|js|css)\// => \&static ],
-    [ "add" => \&add_word ]
+    [ "/add" => \&add_word ],
+    [ "/ping" => \&pong ]
 ];
 
 my $app = sub {
@@ -83,6 +93,10 @@ my $app = sub {
             my $res = $req->new_response(500);
             $res->content_type("text/plain");
             $res->body($@);
+        }
+        if (ref $res->body eq "HASH" or ref $res->body eq "ARRAY") {
+            $res->content_type("application/json");
+            $res->body( JSON::XS->new->encode($res->body) );
         }
         $res->finalize;
     } else {
