@@ -61,7 +61,7 @@ sub lookup {
                 $res->{ $crc } = {
                     word => $wres->{$crc}->{word},
                     ipa => $wres->{$crc}->{ipa},
-                    sound => $sres->{$crc} ? [ map { $_->{md5} } @$sres->{$crc} ] : [],
+                    sound => $sres->{$crc} ? [ map { $_->{md5} } @{$sres->{$crc}} ] : [],
                     fk => $fks->{$crc} || [],
                 };
             }

@@ -10,9 +10,12 @@ use Plack::Builder;
 use Plack::App::File;
 
 use LSW::Log;
+use LSW::Dictionary;
 
 use File::Basename;
 my $static_prefix = File::Spec->catdir(dirname(__FILE__), "static");
+my $LSW = LSW::Dictionary->new(db_folder => $ENV{LSW_DB_FOLDER}, queue_enable => 1);
+
 
 sub static {
     my $req = shift;
@@ -48,19 +51,36 @@ sub pong {
     return $res;
 }
 
-sub add_word {
+sub translate {
     my $req = shift;
     my $res = $req->new_response(200);
-    my $query = lc $req->parameters->{word};
-    $res->content_type("text/plain");
-    $res->body($query);
+    my $content = lc $req->parameters->{text_to_translate};
+
+    my @words = $content =~ /(\w{1,240})/g;
+    log_info("Try to resolve words:", \@words);
+
+    my $ipa_dict = $LSW->db_lookup(\@words);
+
+    $content =~ s/(\w{1,240})/$ipa_dict->{$1} ? "$1 (".$ipa_dict->{$1}->{ipa}.")" : "-$1-"/seg;
+
+    $res->body({ ret => $content });
     return $res;
+}
+
+sub add_word {
+    # my $req = shift;
+    # my $res = $req->new_response(200);
+    # my $query = lc $req->parameters->{word};
+    # $res->content_type("text/plain");
+    # $res->body($query);
+    # return $res;
 }
 
 my $home_router = [
     [ "/" => \&static ],
     [ qr/^\/(img|js|css)\// => \&static ],
     [ "/add" => \&add_word ],
+    [ "/translate" => \&translate ],
     [ "/ping" => \&pong ]
 ];
 
@@ -107,4 +127,4 @@ my $app = sub {
     }
 };
 
-# plackup -I lib  web/lsw.psgi
+# LSW_DB_FOLDER=~/tmp/lsw plackup -I lib web/lsw.psgi

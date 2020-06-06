@@ -14,7 +14,7 @@ sub new {
 
     if ($params->{db_folder}) {
         die "db_folder $params->{db_folder} is corrupt!" unless -d $params->{db_folder};
-        log_info("Work with filder:", $params->{db_folder});
+        log_info("Work with folder:", $params->{db_folder});
         $params->{words_db_path} ||= File::Spec->catfile( $params->{db_folder}, 'words.sqlite3' );
         $params->{fk_db_path} ||= File::Spec->catfile( $params->{db_folder}, 'fk.sqlite3' );
         $params->{sounds_db_path} ||= File::Spec->catfile( $params->{db_folder}, 'sounds.sqlite3' );

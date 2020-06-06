@@ -23,9 +23,9 @@
         $(this).prop('disabled', true);
         $("#answer").empty();
 
-        var posting = $.post( "/ping", { pong: $( "#text_to_translate" ).val() } );
+        var posting = $.post( "/translate", { text_to_translate: $( "#text_to_translate" ).val() } );
         posting.done(function( data ) {
-            $("#answer").append( data.pong );
+            $("#answer").append( data.ret );
             $("#button_translate").prop('disabled', false);
         });
     });
