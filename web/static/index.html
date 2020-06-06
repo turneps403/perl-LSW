@@ -7,34 +7,26 @@
 </head>
 <body>
 
-<form>
+<div name="form">
     <label>text:</label><br/>
-    <textarea name="name" rows="8" cols="180" id="text"></textarea><br/>
+    <textarea name="name" rows="8" cols="180" id="text_to_translate"></textarea><br/>
     <input type="button" value="translate" id="button_translate">
-</form>
+</div>
+<hr/>
 <div>
-    <label>answer:</label><br>
+    <label>answer:</label><br/><br/>
     <div id="answer"></div>
 </div>
 
 <script>
-    // Attach a submit handler to the form
-    $( "#button_translate" ).submit(function( event ) {
-        // Stop form from submitting normally
-        event.preventDefault();
+    $("#button_translate").click(function() {
+        $(this).prop('disabled', true);
+        $("#answer").empty();
 
-        // Get some values from elements on the page:
-        var $form = $( this ),
-        term = $form.find( "input[name='s']" ).val(),
-        url = $form.attr( "action" );
-
-        // Send the data using post
-        var posting = $.post( url, { s: term } );
-
-        // Put the results in a div
+        var posting = $.post( "/ping", { pong: $( "#text_to_translate" ).val() } );
         posting.done(function( data ) {
-        var content = $( data ).find( "#content" );
-        $( "#result" ).empty().append( content );
+            $("#answer").append( data.pong );
+            $("#button_translate").prop('disabled', false);
         });
     });
 </script>
